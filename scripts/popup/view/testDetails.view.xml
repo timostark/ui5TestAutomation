@@ -48,17 +48,6 @@
                                       columnsM="1"
                                       singleContainerFullSize="false">
                             <f:content>
-                                <!--
-                                <Label text="Language" required="true"/>
-                                <Select id="tstLanguage"
-                                        change="onUpdatePreview"
-                                        items="{settings>/codeLanguages}"
-                                        selectedKey="{viewModel>/codeSettings/language}">
-                                    <items>
-                                        <core:Item text="{settings>text}" key="{settings>key}"/>
-                                    </items>
-                                </Select>
-                                -->
                                 <Label required="true" text="Test-Category"/>
                                 <Input value="{viewModel>/codeSettings/testCategory}" change="onUpdatePreview"/>
 
@@ -67,7 +56,14 @@
 
                                 <Label text="Test-Page"/>
                                 <Input value="{viewModel>/codeSettings/testUrl}" change="onUpdatePreview"/>
-                                
+                                <!--
+                                <Label text="Language" required="true"/>
+                                <Select id="tstLanguage" change="onUpdatePreview" items="{settings>/codeLanguages}" selectedKey="{viewModel>/codeSettings/language}">
+                                    <items>
+                                        <core:Item text="{settings>text}" key="{settings>key}"/>
+                                    </items>
+                                </Select>
+                                -->
                                 <Label text="Authentification"/>
                                 <Select id="tstAuthentication" change="onUpdatePreview" items="{settings>/authentification}" selectedKey="{viewModel>/codeSettings/authentification}">
                                     <items>

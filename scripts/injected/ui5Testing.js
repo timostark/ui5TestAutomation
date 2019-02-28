@@ -308,7 +308,7 @@ else {
             oDom.get(0).dispatchEvent(event);
 
             //afterwards trigger the blur event, in order to trigger the change event (enter is not really the same.. but ya..)
-            if (oItem.property.actionSettings.blur === true ) {
+            if (oItem.property.actionSettings.blur === true) {
                 var event = new MouseEvent('blur', {
                     view: window,
                     bubbles: true,
@@ -317,7 +317,7 @@ else {
                 event.originalEvent = event;
                 oDom.get(0).dispatchEvent(event);
             }
-            if ( oItem.property.actionSettings.enter === true ) {
+            if (oItem.property.actionSettings.enter === true) {
                 var event = new KeyboardEvent('keydown', {
                     view: window,
                     data: '',
@@ -550,12 +550,15 @@ else {
         oItem.uniquness = {
             property: {},
             context: {},
-            binding: {}
+            binding: {},
+            bindingContext: {}
         };
 
         //create uniquness for properties..
         var oObjectProps = {};
+        var oObjectBndngs = {};
         var oObjectCtx = {};
+        var oObjectBndngContexts = {};
         if (oItem.parent && oItem.parent.control && oItem.control.sParentAggregationName && oItem.control.sParentAggregationName.length > 0) {
             //we are an item..get all children of my current level, to search for identical items..
             var aItems = oItem.parent.control.getAggregation(oItem.control.sParentAggregationName);
@@ -595,6 +598,43 @@ else {
                         oObjectCtx[sModel][sCtx]._differentValues = this._getPropertiesInArray(oObjectCtx[sModel][sCtx]);
                     }
                 }
+
+                for (var sProperty in oItem.bindingContext) {
+                    if (!oObjectBndngContexts[sProperty]) {
+                        oObjectBndngContexts[sProperty] = {
+                            _totalAmount: 0
+                        };
+                    }
+
+                    var sValue = fnGetBindingContextInformation(aItems[i], sProperty);
+                    if (!oObjectBndngContexts[sProperty][sValue]) {
+                        oObjectBndngContexts[sProperty][sValue] = 0;
+                    }
+                    oObjectBndngContexts[sProperty][sValue] = oObjectBndngContexts[sProperty][sValue] + 1;
+                    oObjectBndngContexts[sProperty]._totalAmount = oObjectBndngContexts[sProperty]._totalAmount + 1;
+                }
+                for (var sProperty in oItem.bindingContext) {
+                    oObjectBndngContexts[sProperty]._differentValues = this._getPropertiesInArray(oObjectBndngContexts[sProperty]);
+                }
+
+                for (var sProperty in oItem.binding) {
+                    if (!oObjectBndngs[sProperty]) {
+                        oObjectBndngs[sProperty] = {
+                            _totalAmount: 0
+                        };
+                    }
+
+                    var sValue = fnGetBindingInformation(aItems[i], sProperty).path;
+                    if (!oObjectBndngs[sProperty][sValue]) {
+                        oObjectBndngs[sProperty][sValue] = 0;
+                    }
+                    oObjectBndngs[sProperty][sValue] = oObjectBndngs[sProperty][sValue] + 1;
+                    oObjectBndngs[sProperty]._totalAmount = oObjectBndngs[sProperty]._totalAmount + 1;
+                }
+                for (var sProperty in oItem.binding) {
+                    oObjectBndngs[sProperty]._differentValues = this._getPropertiesInArray(oObjectBndngs[sProperty]);
+                }
+
                 for (var sProperty in oItem.property) {
                     var sGetter = "get" + sProperty.charAt(0).toUpperCase() + sProperty.substr(1);
                     if (!oObjectProps[sProperty]) {
@@ -648,8 +688,13 @@ else {
         for (var sAttr in oItem.binding) {
             iUniqueness = 0;
             if (oMerged.cloned === true) {
-                //we are > 0 - our uniquness is 0, as bindings as MOST CERTAINLY not done per item (but globally)
-                iUniqueness = 0;
+                //we are > 0 - our uniquness is 0, our binding will contain a primary key for the list binding
+                if (oObjectBndngs[sAttr]._totalAmount === oObjectBndngs[sAttr]._differentValues) {
+                    //seems to be a key field.. great
+                    iUniqueness = 100;
+                } else {
+                    iUniqueness = ((oObjectBndngs[sAttr]._totalAmount + 1 - oObjectBndngs[sAttr][oItem.binding[sAttr].path]) / oObjectBndngs[sAttr]._totalAmount) * 90;
+                }
             } else {
                 //check if the binding is a preferred one (e.g. for label and similar)
                 iUniqueness = oItem.uniquness.property[sAttr];
@@ -659,6 +704,22 @@ else {
                 }
             }
             oItem.uniquness.binding[sAttr] = parseInt(iUniqueness, 10);
+        }
+
+        for (var sAttr in oItem.bindingContext) {
+            iUniqueness = 0;
+            if (oMerged.cloned === true) {
+                //we are > 0 - our uniquness is 0, our binding will contain a primary key for the list binding
+                if (oObjectBndngContexts[sAttr]._totalAmount === oObjectBndngContexts[sAttr]._differentValues) {
+                    //seems to be a key field.. great
+                    iUniqueness = 100;
+                } else {
+                    iUniqueness = ((oObjectBndngContexts[sAttr]._totalAmount + 1 - oObjectBndngContexts[sAttr][oItem.bindingContext[sAttr]]) / oObjectBndngContexts[sAttr]._totalAmount) * 90;
+                }
+            } else {
+                iUniqueness = 0; //not cloned - probably not good..
+            }
+            oItem.uniquness.bindingContext[sAttr] = parseInt(iUniqueness, 10);
         }
 
         for (var sModel in oItem.context) {
@@ -879,15 +940,15 @@ else {
         this._bStarted = true;
         $(".HVRReveal").removeClass('HVRReveal');
         this.lockScreen(); //we are locked until the next step occurs, or the overall test is stopped..
-        
+
         if (oData && oData.startImmediate === true) {
             if (!oLastDom && oData.domId) {
                 oLastDom = document.getElementById(oData.domId);
             }
-            if ( !oLastDom ) {
+            if (!oLastDom) {
                 oLastDom = document.activeElement;
             }
-            
+
             //Directly select again (woop)
             setTimeout(function () {
                 this.onClick(oLastDom);
@@ -912,23 +973,23 @@ else {
         this.onClick(oElement, false);
     };
 
-    TestHandler.prototype.__showFastInformation = function(event){
+    TestHandler.prototype.__showFastInformation = function (event) {
         this.__popover = new sap.m.Popover();
         var control = this._getControlFromDom(event.target);
         var controlInformation = new sap.ui.model.json.JSONModel({});
         controlInformation.setProperty('/controlClass', control.getMetadata()._sClassName);
         controlInformation.setProperty('/controlId', control.getId());
         var genIdPatt = new RegExp('__' + control.getMetadata()._sUIDToken + '[0-9]+');
-        if(genIdPatt.exec(control.getId())) {
+        if (genIdPatt.exec(control.getId())) {
             controlInformation.setProperty('/generatedId', true);
         } else {
             controlInformation.setProperty('/generatedId', false);
         }
         var aPropertyMethods = [...new Set(control.getMetadata()._aAllPublicMethods.filter(m => m.startsWith('get')))];
         var aValues = aPropertyMethods
-            .filter(m => typeof(control[m]) === 'function')
-            .map(b => ({property: b.replace('get', ''), value: control[b]()}))
-            .filter(o => Object.values(o)[0] !== null && typeof(Object.values(o)[0]) !== 'function' && typeof(Object.values(o)[0]) !== 'object'  && typeof(Object.values(o)[0]) !== 'undefined');
+            .filter(m => typeof (control[m]) === 'function')
+            .map(b => ({ property: b.replace('get', ''), value: control[b]() }))
+            .filter(o => Object.values(o)[0] !== null && typeof (Object.values(o)[0]) !== 'function' && typeof (Object.values(o)[0]) !== 'object' && typeof (Object.values(o)[0]) !== 'undefined');
 
         controlInformation.setProperty('/primitiveProperties', aValues);
         this.__popover.setModel(controlInformation);
@@ -940,7 +1001,7 @@ else {
 
         var vBox = new sap.m.VBox();
         controlInformation.getProperty('/primitiveProperties')
-                            .forEach(el => vBox.addItem(new sap.m.ObjectAttribute({title: el.property, text: el.value})));
+            .forEach(el => vBox.addItem(new sap.m.ObjectAttribute({ title: el.property, text: el.value })));
 
         this.__popover.addContent(vBox);
         this.__popover.openBy(control);
@@ -1520,11 +1581,24 @@ else {
             }
         }
 
+        if (id.bindingContext) {
+            for (var sModel in id.bindingContext) {
+                var oCtx = oItem.getBindingContext(sModel === "undefined" ? undefined : sModel);
+                if (!oCtx) {
+                    return false;
+                }
+
+                if ( oCtx.getPath() !== id.bindingContext[sModel]) {
+                    return false;
+                }
+            }
+        }
+
         if (id.binding) {
             for (var sBinding in id.binding) {
-                var oAggrInfo = oItem.getBindingInfo(sBinding);
-                if (!oAggrInfo) {
-                    //SPECIAL CASE for sap.m.Label in Forms, where the label is actually bound against the parent element (yay)
+                var oBndgInfo = fnGetBindingInformation(oItem, sBinding);
+
+                if ( oBndgInfo.path !== id.binding[sBinding].path ) {
                     if (oItem.getMetadata().getElementName() === "sap.m.Label") {
                         if (oItem.getParent() && oItem.getParent().getMetadata()._sClassName === "sap.ui.layout.form.FormElement") {
                             var oParentBndg = oItem.getParent().getBinding("label");
@@ -1536,17 +1610,6 @@ else {
                         }
                     } else {
                         return false;
-                    }
-                } else {
-                    var oBinding = oItem.getBinding(sBinding);
-                    if (!oBinding) {
-                        if (oAggrInfo.path !== id.binding[sBinding].path) {
-                            return false;
-                        }
-                    } else {
-                        if (oBinding.getPath() !== id.binding[sBinding].path) {
-                            return false;
-                        }
                     }
                 }
             }
@@ -1607,12 +1670,59 @@ else {
         return true;
     };
 
+    var fnGetBindingContextInformation = function(oItem, sModel) {
+        var oCtx = oItem.getBindingContext(sModel === "undefined" ? undefined : sModel);
+        if ( !oCtx ) {
+            return null;
+        }
+        return oCtx.getPath();
+    };
+
+    var fnGetBindingInformation = function(oItem, sBinding) {
+        var oBindingInfo = oItem.getBindingInfo(sBinding);
+        var oBinding = oItem.getBinding(sBinding);
+        var oReturn = {};
+        if (!oBindingInfo) {
+            return oReturn;
+        }
+
+        //not really perfect for composite bindings (what we are doing here) - we are just returning the first for that..
+        //in case of a real use case --> enhance
+        var oRelevantPart = oBindingInfo;
+
+        if (oBindingInfo.parts && oBindingInfo.parts.length > 0) {
+            oRelevantPart = oBindingInfo.parts[0];
+        }
+
+        //get the binding context we are relevant for..
+        var oBndgContext = oItem.getBindingContext(oRelevantPart.model);
+        var sPathPre = oBndgContext ? oBndgContext.getPath() + "/" : "";
+
+        if (oBinding) {
+            oReturn = {
+                model: oRelevantPart.model,
+                path: oBinding.sPath && oBinding.getPath(),
+                static: oBinding.oModel && oBinding.getModel() instanceof sap.ui.model.resource.ResourceModel
+            };
+
+            oReturn.path = sPathPre + oReturn.path;
+        } else {
+            oReturn = {
+                path: oBindingInfo.path,
+                model: oRelevantPart.model,
+                static: true
+            };
+        }
+        return oReturn;
+    };
+
     var fnGetElementInformation = function (oItem, oDomNode, bFull) {
         var oReturn = {
             property: {},
             aggregation: [],
             association: {},
             binding: {},
+            bindingContext: {},
             context: {},
             model: {},
             metadata: {},
@@ -1730,45 +1840,9 @@ else {
 
         //bindings..
         for (var sBinding in oItem.mBindingInfos) {
-            var oBindingInfo = oItem.getBindingInfo(sBinding);
-            var oBinding = oItem.getBinding(sBinding);
-            if (!oBindingInfo) {
-                continue;
-            }
-
-            //not really perfect for composite bindings (what we are doing here) - we are just returning the first for that..
-            //in case of a real use case --> enhance
-            var oRelevantPart = oBindingInfo;
-            if (oBindingInfo.parts && oBindingInfo.parts.length > 0 ) {
-                oRelevantPart = oBindingInfo.parts[0];
-            }
-
-            if (oBinding) {
-                oReturn.binding[sBinding] = {
-                    model: oRelevantPart.model,
-                    path: oBinding.sPath && oBinding.getPath(),
-                    static: oBinding.oModel && oBinding.getModel() instanceof sap.ui.model.resource.ResourceModel
-                };
-            } else {
-                oReturn.binding[sBinding] = {
-                    path: oBindingInfo.path,
-                    model: oRelevantPart.model,
-                    static: true
-                };
-                /*if (oBindingInfo.parts && oBindingInfo.parts.length > 0) {
-                    for (var i = 0; i < oBindingInfo.parts.length; i++) {
-                        if (!oBindingInfo.parts[i].path) {
-                            continue;
-                        }
-                        if (!oReturn.binding[sBinding]) {
-                            oReturn.binding[sBinding] = { path: oBindingInfo.parts[i].path, "static": true };
-                        } else {
-                            oReturn.binding[sBinding].path += ";" + oBindingInfo.parts[i].path;
-                        }
-                    }
-                }*/
-            }
+            oReturn.binding[sBinding] = fnGetBindingInformation(oItem,sBinding);
         }
+
 
         //very special for "sap.m.Label"..
         if (oReturn.metadata.elementName === "sap.m.Label" && !oReturn.binding.text) {
@@ -1783,6 +1857,15 @@ else {
             }
         }
 
+        //binding context
+        var aModels = fnGetContextModels(oItem);
+        for (var sModel in aModels) {
+            var oBndg = fnGetBindingContextInformation(oItem, sModel);
+            if (!oBndg) {
+                continue;
+            }
+            oReturn.bindingContext[sModel] = oBndg;
+        }
 
         //return all simple properties
         for (var sProperty in oItem.mProperties) {
@@ -1829,6 +1912,18 @@ else {
         return oReturn;
     };
 
+    var fnGetContextModels = function (oItem) {
+        var oReturn = {};
+
+        if (!oItem) {
+            return oReturn;
+        }
+
+        var oModel = {};
+        oModel = $.extend(true, oModel, oItem.oModels);
+        oModel = $.extend(true, oModel, oItem.oPropagatedProperties.oModels);
+        return oModel;
+    };
 
     //missing: get elements with same parent, to get elements "right next", "left" and on same level
     var fnGetContexts = function (oItem) {

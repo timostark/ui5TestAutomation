@@ -71,7 +71,7 @@ sap.ui.define([
         };
         var sCodeConf = "exports.config = {\n";
         sCodeConf += "  profile: 'integration',\n";
-        sCodeConf += "  baseUrl: '" + oCodeSettings.testUrl + "'\n";
+        sCodeConf += "  baseUrl: '" + oCodeSettings.testUrl + "'";
         if (oCodeSettings.authentification === "FIORI" ) {
             sCodeConf += ",\n";
             sCodeConf += "  auth: {\n";
@@ -80,6 +80,8 @@ sap.ui.define([
             sCodeConf += "        pass: '${params.pass}'\n";
             sCodeConf += "     }\n";
             sCodeConf += "  }\n";
+        } else {
+            sCodeConf += "\n";
         }
         sCodeConf += "};";
         oCodeTest.code = sCodeConf;
@@ -247,7 +249,7 @@ sap.ui.define([
             //syntax: element().element().element().all(target_element)
             var sOwnElement = "control( " + this._getSelectorToJSONString(oUI5Selector.own) + "))";
             if (sParents.length && bMulti == true) {
-                sElement = sParents + ".all(" + sOwnElement + ")";
+                sElement = sParents + ".all(by." + sOwnElement;
             } else if (bMulti === true) {
                 sElement = sElement + ".all(by." + sOwnElement;
             } else if (sParents.length) {

@@ -1130,6 +1130,21 @@ sap.ui.define([
                             }
                         }
                     }
+                    if (!jQuery.isEmptyObject(oItem.bindingContext)) {
+                        for (var sAttr in oItem.bindingContext) {
+                            if (typeof oItem.bindingContext[sAttr] !== "object") {
+                                aList.push({
+                                    type: "BNDX",
+                                    typeTxt: "Binding-Context",
+                                    bdgPath: sAttr,
+                                    attribute: sAttr,
+                                    importance: oItem.uniquness.bindingContext[sAttr],
+                                    value: oItem.bindingContext[sAttr],
+                                    valueToString: oItem.bindingContext[sAttr]
+                                });
+                            }
+                        }
+                    }
                     if (!jQuery.isEmptyObject(oItem.property)) {
                         for (var sAttr in oItem.property) {
                             if (typeof oItem.property[sAttr] !== "object") {
@@ -1145,6 +1160,9 @@ sap.ui.define([
                             }
                         }
                     }
+
+                    //avoid working with context and prefer usage of bindin path..https://github.com/SAP/ui5-uiveri5/issues/25
+                    /*
                     if (!jQuery.isEmptyObject(oItem.context)) {
                         for (var sModel in oItem.context) {
                             for (var sAttribute in oItem.context[sModel]) {
@@ -1161,7 +1179,7 @@ sap.ui.define([
                                 }
                             }
                         }
-                    }
+                    }*/
                     var oMerged = this._getMergedClassArray(oItem);
                     this._oModel.setProperty("/element/itemCloned", oMerged.cloned);
                     if (oMerged.cloned === true) {

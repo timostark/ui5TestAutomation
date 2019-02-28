@@ -36,13 +36,13 @@
                                     <Text text=""/>
                                 </Column>
                                 <Column>
-                                    <Title text="{i18n>targetUrl}"/>
+                                    <Text text="{i18n>targetUrl}"/>
                                 </Column>
                                 <Column width="5rem" hAlign="Center">
-                                    <Title text="{i18n>showTab}"/>
+                                    <Text text="{i18n>showTab}"/>
                                 </Column>
                                 <Column width="5rem" hAlign="Center">
-                                    <Title text="{i18n>recordMockdata}"/>
+                                    <Text text="{i18n>recordMockdata}"/>
                                 </Column>
                             </columns>
                             <items>
