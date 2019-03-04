@@ -759,7 +759,20 @@ else {
         return oItem;
     }
 
+    TestHandler.prototype._navigateToListItem = function(oItem) {
+        //in case we are actually part of a list item (means of a multi-combobox as an example), we should move to another place
+        //we should directly pretend that we are selecting the list item, otherwise this will just make troubles...
+        /*if (oItem.getMetadata().getElementName() === "sap.m.StandardListItem" ) {
+            var oControl = _getItemForItem(oItem);
+            if ( oControl ) {
+                return oControl;
+            }
+        }*/
+        return oItem;
+    };
+
     TestHandler.prototype._setItem = function (oControl, oDomNode, oOriginalDomNode) {
+        oControl = this._navigateToListItem(oControl);
         var oItem = this._getElementInformation(oControl, oDomNode);
         oItem = this._setUniqunessInformation(oItem);
         oOriginalDomNode = oOriginalDomNode ? oOriginalDomNode : oDomNode;
@@ -1394,15 +1407,24 @@ else {
 
         //(2) no custom data? search for special cases
         //2.1: Multi-Combo-Box
-        var oPrt = _getParentWithDom(oItem, 3);
-        if (oPrt && oPrt.getMetadata().getElementName() === "sap.m.MultiComboBox") {
-            if (oPrt._getItemByListItem) {
-                var oCtrl = oPrt._getItemByListItem(oItem);
-                if (oCtrl) {
-                    return oCtrl;
+        var iIndex = 1;
+        var oPrt = oItem;
+        while (oPrt) {
+            oPrt = _getParentWithDom(oItem, iIndex);
+            iIndex += 1;
+            if ( iIndex > 100 ) {  //avoid endless loop..
+                return null;
+            }
+            if (oPrt && oPrt.getMetadata().getElementName() === "sap.m.MultiComboBox") {
+                if (oPrt._getItemByListItem) {
+                    var oCtrl = oPrt._getItemByListItem(oItem);
+                    if (oCtrl) {
+                        return oCtrl;
+                    }
                 }
             }
         }
+        return null;
     };
 
     //on purpose implemented as local methods
@@ -1588,7 +1610,7 @@ else {
                     return false;
                 }
 
-                if ( oCtx.getPath() !== id.bindingContext[sModel]) {
+                if (oCtx.getPath() !== id.bindingContext[sModel]) {
                     return false;
                 }
             }
@@ -1598,7 +1620,7 @@ else {
             for (var sBinding in id.binding) {
                 var oBndgInfo = fnGetBindingInformation(oItem, sBinding);
 
-                if ( oBndgInfo.path !== id.binding[sBinding].path ) {
+                if (oBndgInfo.path !== id.binding[sBinding].path) {
                     if (oItem.getMetadata().getElementName() === "sap.m.Label") {
                         if (oItem.getParent() && oItem.getParent().getMetadata()._sClassName === "sap.ui.layout.form.FormElement") {
                             var oParentBndg = oItem.getParent().getBinding("label");
@@ -1670,15 +1692,15 @@ else {
         return true;
     };
 
-    var fnGetBindingContextInformation = function(oItem, sModel) {
+    var fnGetBindingContextInformation = function (oItem, sModel) {
         var oCtx = oItem.getBindingContext(sModel === "undefined" ? undefined : sModel);
-        if ( !oCtx ) {
+        if (!oCtx) {
             return null;
         }
         return oCtx.getPath();
     };
 
-    var fnGetBindingInformation = function(oItem, sBinding) {
+    var fnGetBindingInformation = function (oItem, sBinding) {
         var oBindingInfo = oItem.getBindingInfo(sBinding);
         var oBinding = oItem.getBinding(sBinding);
         var oReturn = {};
@@ -1702,7 +1724,10 @@ else {
             oReturn = {
                 model: oRelevantPart.model,
                 path: oBinding.sPath && oBinding.getPath(),
-                static: oBinding.oModel && oBinding.getModel() instanceof sap.ui.model.resource.ResourceModel
+                relativePath: oBinding.sPath && oBinding.getPath(), //relative path..
+                contextPath: sPathPre,
+                static: oBinding.oModel && oBinding.getModel() instanceof sap.ui.model.resource.ResourceModel,
+                jsonBinding: oBinding.oModel && oBinding.getModel() instanceof sap.ui.model.json.JSONModel
             };
 
             oReturn.path = sPathPre + oReturn.path;
@@ -1840,7 +1865,7 @@ else {
 
         //bindings..
         for (var sBinding in oItem.mBindingInfos) {
-            oReturn.binding[sBinding] = fnGetBindingInformation(oItem,sBinding);
+            oReturn.binding[sBinding] = fnGetBindingInformation(oItem, sBinding);
         }
 
 

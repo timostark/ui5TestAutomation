@@ -479,7 +479,7 @@ sap.ui.define([
                 resolve();
                 return false;
             }
-            this._getFoundElements().then(function (aElements) {
+            this._getFoundElements(false).then(function (aElements) {
                 if (aElements.length === 0) {
                     resolve();
                     return;
@@ -623,8 +623,9 @@ sap.ui.define([
         }.bind(this));
     };
 
-    TestHandler.prototype._getFoundElements = function () {
-        var oDefinition = this._getSelectorDefinition(typeof oElement === "undefined" ? this._oModel.getProperty("/element") : oElement);
+    TestHandler.prototype._getFoundElements = function (bWithDomChild) {
+        bWithDomChild = typeof bWithDomChild === "undefined" ? true : false;
+        var oDefinition = this._getSelectorDefinition(typeof oElement === "undefined" ? this._oModel.getProperty("/element") : oElement, bWithDomChild);
 
         return new Promise(function (resolve, reject) {
             this._findItemAndExclude(oDefinition.selectorAttributes).then(function (aItemsEnhanced) {
@@ -771,7 +772,7 @@ sap.ui.define([
         oPanel.setExpanded(oPanel.getExpanded() === false);
     };
 
-    TestHandler.prototype._getSelectorDefinition = function (oElement) {
+    TestHandler.prototype._getSelectorDefinition = function (oElement, bWithDomChild) {
         var oScope = {};
         var sSelector = "";
         var sSelectorAttributes = "";
@@ -781,6 +782,10 @@ sap.ui.define([
         var sActType = oElement.property.actKey; //PRS|TYP
         var sSelectType = oElement.property.selectItemBy; //DOM | UI5 | ATTR
         var sSelectorExtension = oElement.property.domChildWith;
+        bWithDomChild = typeof bWithDomChild === "undefined" ? true : bWithDomChild;
+        if (!bWithDomChild) {
+            sSelectorExtension = "";
+        }
         var oSelectorUI5 = {
         };
 
@@ -907,11 +912,14 @@ sap.ui.define([
 
     TestHandler.prototype.onTypeChange = function () {
         this.byId("atrElementsPnl").setExpanded(false);
+        //keep the filter attributes selected before and reapply them afterwards..
+        var aFilter = this._oModel.getProperty("/element/attributeFilter");
         this._adjustAttributeDefaultSetting(this._oModel.getProperty("/element/item")).then(function (resolve, reject) {
             //if we are within support assistant mode, run it at least once..
             if (this._oModel.getProperty("/element/property/type") === "SUP") {
                 this._runSupportAssistantForSelElement();
             }
+            this._oModel.setProperty("/element/attributeFilter", aFilter);
 
             //update preview
             this._updatePreview();
@@ -1087,6 +1095,9 @@ sap.ui.define([
                 sName = oItem.label.binding.text.path + sName;
             }
             sName = sName.substr(0, 1).toLowerCase() + sName.substr(1);
+
+            //replace everything, which is not so nice...
+            sName = sName.replace(/[^0-9a-zA-Z_]/g, "");
 
             //check if the technical name is already given
             this._oModel.setProperty("/element/property/technicalName", sName);
@@ -1336,7 +1347,10 @@ sap.ui.define([
                     resolve();
                     return;
                 }
+
+
                 //(3): we add the parent or the parent of the parent id in case the ID is unique..
+                //adjustment: this is "ok", but really far from beeing perfect for
                 if (oItem.parent.identifier.ui5Id.length && oItem.parent.identifier.idGenerated === false && oItem.parent.identifier.idCloned === false) {
                     this._add("/element/attributeFilter", { attributeType: "PRT", criteriaType: "ID", subCriteriaType: "ID" });
                     bSufficientForStop = true;

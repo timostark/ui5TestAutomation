@@ -98,28 +98,49 @@ sap.ui.define([
         var oCodeSettings = this._oModel.getProperty("/codeSettings");
         var aCluster = this._groupCodeByCluster(aElements);
 
-        sCode += "describe('test' , function () {\n";
+        sCode += "describe('" + oCodeSettings.testCategory + "' , function () {\n";
         sCode += "\n";
 
         //make the rest of the OPA calls..
         for (var i = 0; i < aCluster.length; i++) {
-            var aLinesDef = [];
+            var aLinesDefCurrentHash = [];
             var aLinesCode = [];
+            var aLinesCodeCurrentHash = [];
+            var sCurrentHash = null;
             this._aNameStack = {};
 
-            sCode += "    it('Test " + i + "', function () {\n";
+            sCode += "    it( '" + oCodeSettings.testName + "', function () {\n";
             for (var j = 0; j < aCluster[i].length; j++) {
                 var oElement = aCluster[i][j];
+
+                if (sCurrentHash === null || sCurrentHash !== oElement.hash) {
+                    if (sCurrentHash !== null) {
+                        //new hash - add the information
+                        aLinesCode = aLinesCode.concat(aLinesDefCurrentHash);
+                        aLinesCode.push("");
+                        aLinesCode = aLinesCode.concat(aLinesCodeCurrentHash);
+                        aLinesCode.push("");
+                        aLinesCode.push("/////////////////////////////////////////////////");
+                        aLinesCode.push("//new route:" + oElement.hash);
+                        aLinesDefCurrentHash = [];
+                        aLinesCodeCurrentHash = [];
+                    } else {
+                        aLinesCode.push("//route:" + oElement.hash);
+                    }
+
+                    sCurrentHash = oElement.hash;
+                }
 
                 if (oElement.property.type !== "SUP") {
                     var oRes = this._getUI5CodeFromItem(oElement);
                     if (oRes.definitons.length) {
-                        aLinesDef.push(oRes.definitons);
+                        aLinesDefCurrentHash = aLinesDefCurrentHash.concat(oRes.definitons);
                     }
-                    aLinesCode = aLinesCode.concat(oRes.code);
+                    aLinesCodeCurrentHash = aLinesCodeCurrentHash.concat(oRes.code);
                 }
             }
-            var aLines = aLinesDef.concat(aLinesCode);
+            var aLines = aLinesCode.concat(aLinesDefCurrentHash);
+            aLines = aLines.concat(aLinesCodeCurrentHash);;
             for (var x = 0; x < aLines.length; x++) {
                 sCode += "        " + aLines[x] + "\n";
             }
@@ -267,17 +288,10 @@ sap.ui.define([
         var aCode = [];
 
         //ui5-specific (1): for ui5, we must have a CONSISTENT parent handling (parentl4 is not possible without l3,l2 and l1) - we will simply add the controlType for those missing..
+        //just not true
+        //example:         var PlantIdInput2 = element(by.control({ id: /detail--ffFixFlexLayout$/ })).element(by.control({ id: /plantFormContainer--plantId_id$/, interaction: { idSuffix: "inner" } }));
+        //ffFixFlexLayout is 4 levels above plant-id - so there is certainly no issue
         var oSelector = oElement.selector;
-        if (oSelector.selectorUI5.parentL4 && !oSelector.selectorUI5.parentL3) {
-            oSelector.selectorUI5.parentL3 = { controlType: oElement.item.parentL3.metadata.elementName };
-        }
-        if (oSelector.selectorUI5.parentL3 && !oSelector.selectorUI5.parentL2) {
-            oSelector.selectorUI5.parentL2 = { controlType: oElement.item.parentL2.metadata.elementName };
-        }
-        if (oSelector.selectorUI5.parentL2 && !oSelector.selectorUI5.parent) {
-            oSelector.selectorUI5.parent = { controlType: oElement.item.parent.metadata.elementName };
-        }
-
         var sType = oElement.property.type; // SEL | ACT | ASS
         var sActType = oElement.property.actKey; //PRS|TYP
         var oUI5Selector = oSelector.selectorUI5;
@@ -402,9 +416,9 @@ sap.ui.define([
                             sCode += '"' + oAss.assertValue + '"';
                         }
                         if (oElement.property.assertMessage) {
-                            sCode += ",\"" + oElement.property.assertMessage + "\");";
+                            sCode += ",\"" + oElement.property.assertMessage + "\")";
                         } else {
-                            sCode += ");";
+                            sCode += ")";
                         }
                         sCode += ");"
                     } else {

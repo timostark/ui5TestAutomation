@@ -189,6 +189,7 @@ sap.ui.define([
                             return { viewProperty: { viewName: sValue } }
                         },
                         getUi5Spec: function (oAdjust, oItem, iValue) {
+                            iValue = typeof iValue === "undefined" ? this.value(oItem) : iValue;
                             oAdjust.viewName = iValue;
                         },
                         assert: function () {
@@ -355,18 +356,22 @@ sap.ui.define([
                                         key: iValue
                                     };
                                 } else {
-                                    //split at last "/"..
-                                    var aValues = iValue.split("/");
-                                    var sPropertyPath = aValues[aValues.length - 1];
-                                    
                                     oAdjust.bindingPath = typeof oAdjust.bindingPath != "undefined" ? oAdjust.bindingPath : {};
                                     oAdjust.bindingPath = {
-                                        propertyPath: sPropertyPath,
-                                        model: this.bindingRef.model
+                                        propertyPath: this.bindingRef.relativePath
                                     };
-                                    aValues.pop();
-                                    if ( aValues.length ) {
-                                        oAdjust.bindingPath.path = aValues.join("/");
+                                    if ( this.bindingRef.contextPath ) {
+                                        oAdjust.bindingPath.path = this.bindingRef.contextPath;
+                                        if ( oAdjust.bindingPath.path.endsWith("/") ) {
+                                            oAdjust.bindingPath.path = oAdjust.bindingPath.path.substr(0, oAdjust.bindingPath.path.length-1);
+                                        }
+                                    }
+
+                                    if (this.bindingRef.model) {
+                                        oAdjust.bindingPath.modelName = this.bindingRef.model;
+                                        if (oAdjust.bindingPath.propertyPath.charAt(0) === "/") { // this seems to be a bug for me - in case a model name is supplied, we have to provide a double slash
+                                            oAdjust.bindingPath.propertyPath = "/" + oAdjust.bindingPath.propertyPath;
+                                        }
                                     }
                                 }
                             },
@@ -431,7 +436,7 @@ sap.ui.define([
                 criteriaKey: "BDG",
                 criteriaText: "Model-Context Values",
                 criteriaSpec: function (oItem) {
-                    var aReturn = [];   
+                    var aReturn = [];
                     for (var sModel in oItem.context) {
                         for (var sProperty in oItem.context[sModel]) {
                             if (sProperty === "__metadata") {
@@ -532,7 +537,7 @@ sap.ui.define([
                 getItem: function (oItem) { return oItem.parentL2; }.bind(this),
                 getAssertScope: function () { return "parentL2." },
                 getScope: function (oScope) { oScope.parentL2 = oScope.parentL2 ? oScope.parentL2 : {}; return oScope.parentL2; },
-                criteriaTypes: [this._criteriaTypes["ID"], this._criteriaTypes["BNDX"],this._criteriaTypes["ATTR"], this._criteriaTypes["BDG"], this._criteriaTypes["MTA"], this._criteriaTypes["BNDG"], this._criteriaTypes["VIW"]]
+                criteriaTypes: [this._criteriaTypes["ID"], this._criteriaTypes["BNDX"], this._criteriaTypes["ATTR"], this._criteriaTypes["BDG"], this._criteriaTypes["MTA"], this._criteriaTypes["BNDG"], this._criteriaTypes["VIW"]]
             },
             "PRT3": {
                 getItem: function (oItem) { return oItem.parentL3; }.bind(this),
@@ -565,6 +570,9 @@ sap.ui.define([
         this._oElementMix = {
             "sap.m.StandardListItem": {
                 defaultAttributes: function (oItem) {
+                    if (!oItem.itemdata || !oItem.itemdata.identifier || !oItem.itemdata.identifier.ui5Id) {
+                        return [];
+                    }
                     if (!oItem.itemdata.identifier.ui5Id.length) {
                         return [];
                     }
@@ -620,8 +628,17 @@ sap.ui.define([
             },
             "sap.ui.core.Item": {
                 cloned: true,
+
                 defaultAttributes: function (oItem) {
-                    return [{ attributeType: "OWN", criteriaType: "ATTR", subCriteriaType: "key" }];
+                    //the KEY attribute is better in case the item is bound against a JSON list binding..
+                    var bPropertyIsBetter = true;
+                    if (oItem.binding.key) {
+                        //for odata we will access the actual key...
+                        if (oItem.binding.key.jsonBinding === false ) {
+                            bPropertyIsBetter = false;
+                        }
+                    }
+                    return [{ attributeType: "OWN", criteriaType: bPropertyIsBetter ? "ATTR" : "BNDG", subCriteriaType: "key" }];
                 }
             },
             "sap.m.Link": {
@@ -647,7 +664,7 @@ sap.ui.define([
             "sap.m.GenericTile": {
                 defaultAction: "PRS",
                 defaultAttributes: [{ attributeType: "PRT2", criteriaType: "ATTR", subCriteriaType: "target" },
-                    { attributeType: "PRT2", criteriaType: "MTA", subCriteriaType: "ELM" }]
+                { attributeType: "PRT2", criteriaType: "MTA", subCriteriaType: "ELM" }]
             },
             "sap.m.MultiComboBox": {
                 defaultAction: "PRS",
